@@ -31,7 +31,7 @@ function draw() {
 			if (mouseIsPressed) {
 			spaceShip.shout();
 		}
-	background(51);
+	background(56);
 	neighborhood.show();
 	spaceShip.update();
 	spaceShip.show();
@@ -75,7 +75,7 @@ function move() {
 		  x = x + angle_sine*0.2*cos(angle);
 		//print(cos(angle),sin(angle))
 	}
-	var data = {x_val: x, y_val: y };
+	var data = {x_acl: angle_sine*cos(spaceShip.angle), y_acl: angle_sine*sin(spaceShip.angle) };
 	//var msg = {type: 'ping', count: 1};
 	socket.send(JSON.stringify(data));
 	spaceShip.v_val.set(x,y);
