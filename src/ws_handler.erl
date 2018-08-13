@@ -14,7 +14,7 @@ init(Req, Opts) ->
 websocket_init(State) ->
  	io:fwrite("connection establish !~p~n", [State]),
 	gen_server:call(w_serv,new_player),
-	erlang:start_timer(1000, self(), <<"Hello!">>),
+%%	erlang:start_timer(1000, self(), <<"Hello!">>),
 	{ok, State}.
 
 
@@ -29,9 +29,9 @@ websocket_handle({text, Json}, State) ->
 
 
 
-websocket_info({timeout, _Ref, Msg}, State) ->
-	erlang:start_timer(1000, self(), <<"How' you doin'?">>),
-	{reply, {text, Msg}, State};
+%%websocket_info({timeout, _Ref, Msg}, State) ->
+%%	erlang:start_timer(1000, self(), <<"How' you doin'?">>),
+%%	{reply, {text, Msg}, State};
 
 
 websocket_info({world_update,Reply}, State) ->

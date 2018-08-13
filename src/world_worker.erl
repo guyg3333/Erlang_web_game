@@ -68,7 +68,7 @@ init([]) ->
   %% world_objects - set the world objects
   %% token - list of all the assigend plyer
   io:format("i am init and shit\n"),
-  erlang:start_timer(1000, self(),[]),
+  erlang:start_timer(20, self(),[]),
   State = [],
   {ok, State}.
 
@@ -115,10 +115,10 @@ handle_call({move_player,Map}, _From, State) ->
 
   New_X_val = X_val + maps:get(<<"x_acl">>, Map),
   New_Y_val = Y_val + maps:get(<<"y_acl">>, Map),
-  New_X_pos = X_pos + New_X_val,
-  New_Y_pos = Y_pos + New_Y_val,
+  %%New_X_pos = X_pos + New_X_val,
+  %%New_Y_pos = Y_pos + New_Y_val,
 
-  New_Player_data = #{x_pos => New_X_pos , y_pos => New_Y_pos , x_val => New_X_val , y_val => New_Y_val},
+  New_Player_data = #{x_pos => X_pos , y_pos => Y_pos , x_val => New_X_val , y_val => New_Y_val },
   New_state = proplists:delete(Pid, State) ++ [{Pid,New_Player_data}],
 
   io:format("\n recive ~p \n",[New_state]),
@@ -158,9 +158,9 @@ handle_cast(_Request, State) ->
 
 
 handle_info({timeout, _Ref,_}, State) ->
-  erlang:start_timer(100, self(),[]),
-  send_world(State),
-  {noreply, State};
+  erlang:start_timer(20, self(),[]),
+  {ok,New_state} = send_world(State),
+  {noreply, New_state};
 
 
 
@@ -189,6 +189,7 @@ terminate(_Reason, _State) ->
 %% @doc
 %% Convert process state when code is changed
 %%
+
 %% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
 %% @end
 %%--------------------------------------------------------------------
@@ -205,20 +206,40 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 send_world([])->
-  {ok};
+  {ok,[]};
 
 send_world(State)->
-  L_pid = lists:map(fun(Tuple) -> element(1,Tuple) end,State),
-  L_obj = lists:map(fun(Tuple) -> element(2,Tuple) end,State),
-  send_world(L_pid,L_obj),
-  {ok}.
+
+  New_state = lists:map(fun(Tuple) ->
+
+    Temp = element(2,Tuple),
+
+    {element(1,Tuple) ,#{x_pos => maps:get(x_pos,Temp) + maps:get(x_val,Temp),
+      y_pos => maps:get(y_pos,Temp) + maps:get(y_val,Temp),
+      x_val => maps:get(x_val,Temp) ,y_val => maps:get(y_val,Temp) + 0.02 }} end,State),
+
+
+  L_pid = lists:map(fun(Tuple) -> element(1,Tuple) end,New_state),
+
+  send_world(L_pid,New_state),
+  {ok,New_state}.
 
 
 send_world([],_)->
   {ok};
 
-send_world(L_pid,L_obj)->
+send_world(L_pid,State)->
 
-  erlang:send(hd(L_pid),{world_update,L_obj}),
-  New_state = tl(L_pid),
-  send_world(New_state,L_obj).
+  Player_data = proplists:get_value(hd(L_pid),State),        %%get the player data
+  Player_world_list = [Y || Y <- State, element(1,Y) =/= hd(L_pid)],  %%remove player from list
+
+    L_obj = lists:map(fun(Tuple) ->
+    Temp = element(2,Tuple),
+    #{x_pos => maps:get(x_pos,Temp),y_pos => maps:get(y_pos,Temp)} end,Player_world_list),
+
+
+  Player_map = #{x_pos => maps:get(x_pos,Player_data) , y_pos => maps:get(y_pos,Player_data),
+    other_player => L_obj ,type => <<"world_type">>},
+
+  erlang:send(hd(L_pid),{world_update,Player_map}),
+  send_world( tl(L_pid),State).

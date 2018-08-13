@@ -8,13 +8,10 @@ var scene_y;
 var mouse_point;
 var angle_sine;
 var phase_x = 0;
+
 var socket
-
-var msg
-var reacive_new = false;
-
 function setup() {
-socket = new WebSocket("ws://" + window.location.host + "/websocket");
+ socket = new WebSocket("ws://" + window.location.host + "/websocket");
 socket.onopen = function(evt) { onOpen(evt) };
 print("start");
 //while(socket.readyState !=1){};
@@ -28,41 +25,18 @@ neighborhood = new Neighborhood();
 //print(spaceShip.v_pos.x,spaceShip.v_pos.y);
 mouse_point = createVector(0, 0); }
 
-
-
 function draw() {
-	if(keyIsPressed == true){
-			if (mouseIsPressed)
-					spaceShip.shout();
-			move();
-  }
-
-		if(reacive_new){
-		show(msg);
-		reacive_new = true;
-	}
-}
-
-function show(world){
-
+	if(keyIsPressed == true)
+		move();
+			if (mouseIsPressed) {
+			spaceShip.shout();
+		}
 	background(56);
-
-	spaceShip.v_pos.set( world.x_pos, world.y_pos);
-	console.log(world.x_pos, world.y_pos);
+	neighborhood.show();
 	spaceShip.update();
 	spaceShip.show();
 
-
-	for (i in world.other_player){
-		ellipse(world.other_player[i].x_pos, msg.other_player[i].y_pos, 20, 5);
 }
-	neighborhood.show();
-	print("reacive");
-}
-
-
-
-
 
 function onOpen(evt) {
 		print("open");
@@ -70,25 +44,41 @@ function onOpen(evt) {
 }
 function onMessage(ev) {
 	console.log('Received data: ' + ev.data);
-  var temp = JSON.parse(ev.data);
-	if(temp.type == "world_type"){
-		reacive_new = true;
-		msg = temp;
-	}
+  var msg = JSON.parse(ev.data);
+	//spaceShip.v_pos.set( msg.x, msg.y);
+	print("reacive");
 }
 
 
 function move() {
+	var x ,y, angle ;
+	y = spaceShip.v_val.y;
+	x = spaceShip.v_val.x;
+  angle = spaceShip.angle;
+	// if (keyCode === UP_ARROW){
+	// 	y = y - 0.1; }
+	// if (keyCode === LEFT_ARROW){
+	// 	angle = angle - 5;}
+	// if (keyCode === RIGHT_ARROW){
+	// 	angle = angle + 5;}
+	// if (keyCode === DOWN_ARROW){
+	// 	y = y + 0.1;}
+
+
 
 	if (keyCode === UP_ARROW){
 		angle_sine = 1;
 		if(mouseX < windowWidth/2)
 		angle_sine = -1;
 
+			y = y + angle_sine*0.2*sin(angle);
+		  x = x + angle_sine*0.2*cos(angle);
+		//print(cos(angle),sin(angle))
+	}
 	var data = {x_acl: angle_sine*cos(spaceShip.angle), y_acl: angle_sine*sin(spaceShip.angle) };
+	//var msg = {type: 'ping', count: 1};
 	socket.send(JSON.stringify(data));
-  }
-	//spaceShip.v_val.set(x,y);
+	spaceShip.v_val.set(x,y);
 
 }
 
@@ -124,23 +114,62 @@ shout(){
 		}
 		var ang_y = mouseY - this.v_pos.y;
 		var ang_x = mouseX - windowWidth/2;
+		//line(windowWidth/2, this.v_pos.y, mouseX,mouseY);
     this.angle = atan(ang_y/ang_x);
+		 // push();
+		 // mouse_point.set(mouseX-windowWidth/2 ,mouseY-this.v_pos.y);
+		 // translate(windowWidth/2 + phase_x, this.v_pos.y);
+		 // var temp = createVector(windowWidth/2 + phase_x,this.v_pos.y);
+		 // line(0, 0, mouseX-windowWidth/2,mouseY-this.v_pos.y);
+		 // this.angle = mouse_point.angleBetween(temp);
+		 // pop();
+		 this.v_pos.set( this.v_pos.x + this.v_val.x, this.v_pos.y + this.v_val.y);
+		 var x = this.v_val.x -  this.v_val.x*0.02*abs(sin(this.angle));
+		 var y = this.v_val.y  + 0.02;
+     this.v_val.set(x,y);
+		// this.v_pos.y = this.v_pos.y + this.v_val.y;
+		// this.v_pos = this.v_pos.x + this.v_val.x;
 		neighborhood_x = -this.v_pos.x;
 
+
+		if(this.v_pos.x < windowHeight/2){
+			this.v_pos.x = windowHeight/2 ;
+			phase_x = phase_x + this.v_val.x;
+			if(phase_x < -windowHeight/2 )
+				{
+					phase_x = -windowHeight/2 -5;
+				}
+
+		}
+
+		if(this.v_pos.y > windowHeight){
+				this.v_pos.y = windowHeight;
+				this.v_val.y = -this.v_val.y+1;
+		}
+		if(this.v_pos.y < 0){
+				this.v_pos.y = 0;
+				this.v_val.y = -this.v_val.y-1;
+}
+
+	//	print(this.v_pos.y ,this.v_pos.x);
 	}
 
 	show(){
 		stroke('white');
 		strokeWeight(2);
 		noFill();
-		//mouse_point.set(mouseX,mouseY)
+		mouse_point.set(mouseX,mouseY)
+
+	//	x = map(x,0 ,windowWidth,360,0);
+		//print(this.angle);
 		angleMode(DEGREES);
 		push();
-		translate(windowWidth/2, this.v_pos.y);
+		translate(windowWidth/2 + phase_x, this.v_pos.y);
 		rotate(this.angle);
 		//print(this.v_pos.angleBetween(mouse_point));
 		ellipse(0, 0, 20, 5);
 		pop();
+		//strock(0,0,phase_x, 0);
 	}
 
 
