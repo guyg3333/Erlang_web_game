@@ -12,18 +12,20 @@ init(Req, Opts) ->
 	{cowboy_websocket, Req, Opts}.
 
 websocket_init(State) ->
- 	io:fwrite("connection establish !~n", []),
+ 	io:fwrite("connection establish !~p~n", [State]),
+	gen_server:call(w_serv,new_player),
 	erlang:start_timer(1000, self(), <<"Hello!">>),
 	{ok, State}.
 
 
 websocket_handle({text, Json}, State) ->
 	Map = jiffy:decode(Json, [return_maps]),
-   	 X_val = maps:get(<<"x_val">>, Map),
-   	 Y_val = maps:get(<<"y_val">>, Map),
-  	 Reply = #{x_val =>X_val, y_val =>Y_val},
-         io:format("\n~p\n",[{X_val,Y_val}]),
-   	 {reply, {text, jiffy:encode(Reply)}, State}.
+   	 X_acl = maps:get(<<"x_acl">>, Map),
+   	 Y_acl = maps:get(<<"y_acl">>, Map),
+  	 Reply = #{x_val =>X_acl, y_val =>Y_acl},
+	   io:format("\n~p\n",[{X_acl,Y_acl}]),
+	   gen_server:call(w_serv,{move_player,Map}),
+     {reply,{text,jiffy:encode(Reply)}, State}.
 
 
 
@@ -32,5 +34,11 @@ websocket_info({timeout, _Ref, Msg}, State) ->
 	{reply, {text, Msg}, State};
 
 
+websocket_info({world_update,Reply}, State) ->
+	io:format(" message - ws: ~p~n",[Reply]),
+	{reply,{text,jiffy:encode(Reply)}, State};
+
 websocket_info(_Info, State) ->
+	io:format("Unexpected message - ws: ~p~n",[_Info]),
 	{ok, State}.
+

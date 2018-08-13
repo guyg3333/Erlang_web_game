@@ -10,6 +10,12 @@
 
 %% API.
 start(_Type, _Args) ->
+	io:format("hi how lets go\n"),
+
+	%% initial the world process
+	gen_server:start_link({local,w_serv},world_worker,[],[]),
+
+
 	Dispatch = cowboy_router:compile([
 		{'_', [
 			{"/", cowboy_static, {priv_file, websocket, "/static/firstGame/index.html"}},
