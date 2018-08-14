@@ -64,16 +64,8 @@ function show(world){
 	spaceShip.update();
 	spaceShip.show();
 
-	var norm =  world.x_pos + windowWidth/2;
-	if(spaceShip.v_pos.y + windowHeight/2 >= 900)
-	    norm =  -(900 + windowHeight);
-			var y;
 	for (i in world.other_player){
-		if(spaceShip.v_pos.y + windowHeight/2 >= 900)
-		   y = windowHeight -(900 - msg.other_player[i].y_pos);
-		else{
-		   	y = - (world.x_pos - msg.other_player[i].y_pos) + windowHeight/2;}
-		ellipse(world.other_player[i].x_pos - world.x_pos + windowWidth/2, y , 20, 5);
+		ellipse(world.other_player[i].x_pos - world.x_pos + windowWidth/2, msg.other_player[i].y_pos +neighborhood_y, 20, 5);
 }
 	neighborhood.show();
 	print("reacive");
@@ -226,7 +218,9 @@ class Neighborhood{
 	show(){
 		stroke('white');
 		strokeWeight(2);
-		translate(0,0);
+		//translate(0,0);
+		line(-100, 900+ neighborhood_y, 10000, 900+ neighborhood_y);
+		line(-100, 0+ neighborhood_y, 10000, 0+ neighborhood_y);
 		noFill();
 		var i;
 		for(i = 0; i<100 ;i++){
