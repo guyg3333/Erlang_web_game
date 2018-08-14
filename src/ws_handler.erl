@@ -23,7 +23,7 @@ websocket_handle({text, Json}, State) ->
    	 X_acl = maps:get(<<"x_acl">>, Map),
    	 Y_acl = maps:get(<<"y_acl">>, Map),
   	 Reply = #{x_val =>X_acl, y_val =>Y_acl},
-	   io:format("\n~p\n",[{X_acl,Y_acl}]),
+	 %%  io:format("\n~p\n",[{X_acl,Y_acl}]),
 	   gen_server:call(w_serv,{move_player,Map}),
      {reply,{text,jiffy:encode(Reply)}, State}.
 
@@ -35,7 +35,7 @@ websocket_handle({text, Json}, State) ->
 
 
 websocket_info({world_update,Reply}, State) ->
-	io:format(" message - ws: ~p~n",[Reply]),
+	%%io:format(" message - ws: ~p~n",[Reply]),
 	{reply,{text,jiffy:encode(Reply)}, State};
 
 websocket_info(_Info, State) ->

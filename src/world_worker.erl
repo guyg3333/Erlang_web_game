@@ -91,22 +91,22 @@ init([]) ->
 
   %%exmple of reacive
   handle_call(new_player, _From, State) ->
-  io:format("\n recive \n"),
+  %%io:format("\n recive \n"),
     Pid = element(1,_From),
     New_data = #{x_pos => 200 , y_pos => 200 , x_val => 0 , y_val => 0},
     Player_tuple = {Pid,New_data},
     New_state = lists:append(State ,[Player_tuple]),
-    io:format("\n recive ~p \n",[New_state]),
+    %%io:format("\n recive ~p \n",[New_state]),
 
     {reply, {ok,New_state}, New_state};
 
 
 %%exmple of reacive
 handle_call({move_player,Map}, _From, State) ->
-  io:format("\r recive \n"),
+  %%io:format("\r recive \n"),
   Pid = element(1,_From),
   Player_data = proplists:get_value(Pid,State),   %%get the player data
-  io:format("\r guy ~p\n",[Player_data]),
+  %%io:format("\r guy ~p\n",[Player_data]),
 
   X_pos =  maps:get(x_pos,Player_data),
   Y_pos =  maps:get(y_pos,Player_data),
@@ -121,7 +121,7 @@ handle_call({move_player,Map}, _From, State) ->
   New_Player_data = #{x_pos => X_pos , y_pos => Y_pos , x_val => New_X_val , y_val => New_Y_val },
   New_state = proplists:delete(Pid, State) ++ [{Pid,New_Player_data}],
 
-  io:format("\n recive ~p \n",[New_state]),
+  %%io:format("\n recive ~p \n",[New_state]),
 
   {reply, {ok,New_state}, New_state}.
 
@@ -220,11 +220,13 @@ send_world(State)->
 
 
   New_state = floor_colusion(State_with_val),
+  State_after_coliad =  colusion_detection(New_state),
 
-  L_pid = lists:map(fun(Tuple) -> element(1,Tuple) end,New_state),
 
-  send_world(L_pid,New_state),
-  {ok,New_state}.
+  L_pid = lists:map(fun(Tuple) -> element(1,Tuple) end,State_after_coliad),
+
+  send_world(L_pid,State_after_coliad),
+  {ok,State_after_coliad}.
 
 
 send_world([],_)->
@@ -258,9 +260,9 @@ floor_colusion(State)->
 
     case Temp_y of
       Temp_y when Temp_y >= 900->
-        {-maps:get(y_val,Temp),900};
+        {-maps:get(y_val,Temp)*0.5,900};
       Temp_y when Temp_y =< 0->
-        {-maps:get(y_val,Temp),0};
+        {-maps:get(y_val,Temp)*0.5,0};
           _ ->
             {maps:get(y_val,Temp), maps:get(y_pos,Temp)}
     end,
@@ -270,3 +272,93 @@ floor_colusion(State)->
                          y_pos => element(2,New_y_val),
                          x_val => maps:get(x_val,Temp),
                          y_val => element(1,New_y_val) }} end,State).
+
+
+
+colusion_detection([])->
+  io:format(" coliad - 0 0  \n"),
+
+  [];
+
+colusion_detection(State)->
+  io:format(" coliad - 0  \n"),
+  colusion_detection(State,tl(State),State).
+
+
+
+
+
+
+   colusion_detection([],[],State)->
+     io:format(" coliad - 1  \n"),
+
+     State;
+
+
+
+   colusion_detection(List,[],State)->
+     io:format(" coliad - 2  \n"),
+
+     if length(List) > 1 -> colusion_detection(tl(List),tl(tl(List)),State);
+       true -> State
+     end;
+
+
+
+
+  colusion_detection(List1,List2,State)->
+    io:format(" coliad - 3 3 \n"),
+
+    Temp1 = element(2,hd(List1)),
+    Temp2 = element(2,hd(List2)),
+
+
+    Y1 = maps:get(y_pos,Temp1),
+    X1 = maps:get(x_pos,Temp1),
+    Y2 = maps:get(y_pos,Temp2),
+    X2 = maps:get(x_pos,Temp2),
+
+    New_state =
+      if
+        abs(Y1-Y2) < 5 andalso abs(X1-X2) < 10 ->
+
+           io:format(" coliad - true  \n"),
+
+          Witout1 = proplists:delete(element(1,hd(List1)), State),
+          Witout2 = proplists:delete(element(1,hd(List2)), Witout1),
+
+
+          X_pos1 =  maps:get(x_pos,Temp1),
+          Y_pos1 =  maps:get(y_pos,Temp1),
+          X_val1 =  maps:get(x_val,Temp1),
+          Y_val1 =  maps:get(y_val,Temp1),
+
+
+          X_pos2 =  maps:get(x_pos,Temp2),
+          Y_pos2 =  maps:get(y_pos,Temp2),
+          X_val2 =  maps:get(x_val,Temp2),
+          Y_val2 =  maps:get(y_val,Temp2),
+          Gap = if
+            Y1 < Y2  -> -2;
+            true-> 2
+             end,
+
+
+          Map1 = #{x_pos => X_pos1  , y_pos => Y_pos1 + Gap , x_val => X_val2*0.9 , y_val => Y_val2*0.9 },
+          Map2 = #{x_pos => X_pos2  , y_pos => Y_pos2 - Gap , x_val => X_val1*0.9 , y_val => Y_val1*0.9 },
+
+
+        Affter_colliad_1 = {element(1,hd(List1)),Map1},
+        Affter_colliad_2 = {element(1,hd(List2)),Map2},
+
+        Witout2 ++ [Affter_colliad_1,Affter_colliad_2];
+
+        true-> State
+end,
+
+     colusion_detection(List1,tl(List2),New_state).
+
+
+
+
+
