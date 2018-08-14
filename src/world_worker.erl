@@ -158,7 +158,7 @@ handle_cast(_Request, State) ->
 
 
 handle_info({timeout, _Ref,_}, State) ->
-  erlang:start_timer(20, self(),[]),
+  erlang:start_timer(30, self(),[]),
   {ok,New_state} = send_world(State),
   {noreply, New_state};
 
@@ -210,7 +210,7 @@ send_world([])->
 
 send_world(State)->
 
-  New_state = lists:map(fun(Tuple) ->
+  State_with_val = lists:map(fun(Tuple) ->
 
     Temp = element(2,Tuple),
 
@@ -218,6 +218,8 @@ send_world(State)->
       y_pos => maps:get(y_pos,Temp) + maps:get(y_val,Temp),
       x_val => maps:get(x_val,Temp) ,y_val => maps:get(y_val,Temp) + 0.02 }} end,State),
 
+
+  New_state = floor_colusion(State_with_val),
 
   L_pid = lists:map(fun(Tuple) -> element(1,Tuple) end,New_state),
 
@@ -243,3 +245,28 @@ send_world(L_pid,State)->
 
   erlang:send(hd(L_pid),{world_update,Player_map}),
   send_world( tl(L_pid),State).
+
+
+floor_colusion(State)->
+
+  lists:map(fun(Tuple) ->
+
+    Temp = element(2,Tuple),
+    Temp_y = maps:get(y_pos,Temp),
+
+    New_y_val =
+
+    case Temp_y of
+      Temp_y when Temp_y >= 900->
+        {-maps:get(y_val,Temp),900};
+      Temp_y when Temp_y =< 0->
+        {-maps:get(y_val,Temp),0};
+          _ ->
+            {maps:get(y_val,Temp), maps:get(y_pos,Temp)}
+    end,
+
+
+    {element(1,Tuple) ,#{x_pos => maps:get(x_pos,Temp),
+                         y_pos => element(2,New_y_val),
+                         x_val => maps:get(x_val,Temp),
+                         y_val => element(1,New_y_val) }} end,State).

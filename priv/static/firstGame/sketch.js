@@ -3,6 +3,7 @@
 let spaceShip;
 let neighborhood;
 var neighborhood_x;
+var neighborhood_y;
 var scene_x;
 var scene_y;
 var mouse_point;
@@ -12,6 +13,7 @@ var socket
 
 var msg
 var reacive_new = false;
+var Time = 0;
 
 function setup() {
 socket = new WebSocket("ws://" + window.location.host + "/websocket");
@@ -22,6 +24,8 @@ print("start");
 print("socket is opend");
 
 socket.onmessage = function (ev) { onMessage(ev) };
+socket.onclose = function(evt){ onClose(evt) };
+socket.onerror = function(e) { onError(evt)};
 createCanvas(windowWidth, windowHeight);
 spaceShip = new SpaceShip();
 neighborhood = new Neighborhood();
@@ -31,15 +35,23 @@ mouse_point = createVector(0, 0); }
 
 
 function draw() {
+	Time ++;
+
+	if(Time == 360){
+			var data = {x_acl: 0, y_acl: 0 }; //keep alive
+			socket.send(JSON.stringify(data));
+			Time = 0;}
+
 	if(keyIsPressed == true){
 			if (mouseIsPressed)
 					spaceShip.shout();
 			move();
+
   }
 
 		if(reacive_new){
 		show(msg);
-		reacive_new = true;
+		reacive_new = false;
 	}
 }
 
@@ -52,9 +64,16 @@ function show(world){
 	spaceShip.update();
 	spaceShip.show();
 
-
+	var norm =  world.x_pos + windowWidth/2;
+	if(spaceShip.v_pos.y + windowHeight/2 >= 900)
+	    norm =  -(900 + windowHeight);
+			var y;
 	for (i in world.other_player){
-		ellipse(world.other_player[i].x_pos, msg.other_player[i].y_pos, 20, 5);
+		if(spaceShip.v_pos.y + windowHeight/2 >= 900)
+		   y = windowHeight -(900 - msg.other_player[i].y_pos);
+		else{
+		   	y = - (world.x_pos - msg.other_player[i].y_pos) + windowHeight/2;}
+		ellipse(world.other_player[i].x_pos - world.x_pos + windowWidth/2, y , 20, 5);
 }
 	neighborhood.show();
 	print("reacive");
@@ -75,6 +94,14 @@ function onMessage(ev) {
 		reacive_new = true;
 		msg = temp;
 	}
+}
+
+function onClose(evt){
+		console.log('connection close');
+}
+
+function onError(evt)  {
+	console.log("WebSocket Error: " , evt);
 }
 
 
@@ -122,7 +149,10 @@ shout(){
 				this.Array_of_Bullat[i].show();
 			}
 		}
-		var ang_y = mouseY - this.v_pos.y;
+    var ang_y = mouseY - this.v_pos.y;
+		if(this.v_pos.y + windowHeight/2 < 900)
+		     ang_y = mouseY - windowHeight/2;
+
 		var ang_x = mouseX - windowWidth/2;
     this.angle = atan(ang_y/ang_x);
 		neighborhood_x = -this.v_pos.x;
@@ -130,17 +160,34 @@ shout(){
 	}
 
 	show(){
+
+
 		stroke('white');
 		strokeWeight(2);
 		noFill();
 		//mouse_point.set(mouseX,mouseY)
 		angleMode(DEGREES);
+
+		if(this.v_pos.y + windowHeight/2 >= 900){
+		neighborhood_y = windowHeight-900;
 		push();
-		translate(windowWidth/2, this.v_pos.y);
+		translate(windowWidth/2, windowHeight - (900 - this.v_pos.y));
 		rotate(this.angle);
 		//print(this.v_pos.angleBetween(mouse_point));
 		ellipse(0, 0, 20, 5);
 		pop();
+	  }
+		else{
+		neighborhood_y =  -(this.v_pos.y - windowHeight/2);
+		console.log(neighborhood_y);
+		push();
+		translate(windowWidth/2, windowHeight/2);
+		rotate(this.angle);
+		//print(this.v_pos.angleBetween(mouse_point));
+		ellipse(0, 0, 20, 5);
+		pop();
+
+		}
 	}
 
 
@@ -183,15 +230,15 @@ class Neighborhood{
 		noFill();
 		var i;
 		for(i = 0; i<100 ;i++){
-		rect(100+neighborhood_x + i*1000, windowHeight-60, 30, 60);
-		rect(200+neighborhood_x + i*1000, windowHeight-60, 30, 60);
-		rect(300+neighborhood_x + i*1000, windowHeight-60, 30, 60);
-		rect(400+neighborhood_x + i*1000, windowHeight-60, 30, 60);
-		rect(500+neighborhood_x + i*1000, windowHeight-300, 30, 300);
-		rect(600+neighborhood_x + i*1000, windowHeight-60, 30, 60);
-		rect(700+neighborhood_x + i*1000, windowHeight-70, 30, 70);
-		rect(800+neighborhood_x + i*1000, windowHeight-100, 30, 100);
-		rect(900+neighborhood_x + i*1000, windowHeight-200, 30, 200);
+		rect(100+neighborhood_x + i*1000, 900-60 + neighborhood_y, 30, 60);
+		rect(200+neighborhood_x + i*1000, 900-60 + neighborhood_y, 30, 60);
+		rect(300+neighborhood_x + i*1000, 900-60 + neighborhood_y, 30, 60);
+		rect(400+neighborhood_x + i*1000, 900-60 + neighborhood_y, 30, 60);
+		rect(500+neighborhood_x + i*1000, 900-300 +neighborhood_y, 30, 300);
+		rect(600+neighborhood_x + i*1000, 900-60 + neighborhood_y, 30, 60);
+		rect(700+neighborhood_x + i*1000, 900-70 + neighborhood_y, 30, 70);
+		rect(800+neighborhood_x + i*1000, 900-100 +neighborhood_y, 30, 100);
+		rect(900+neighborhood_x + i*1000, 900-200 +neighborhood_y, 30, 200);
 	}
 
 	}
