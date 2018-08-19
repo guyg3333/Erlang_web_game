@@ -15,6 +15,11 @@ var msg
 var reacive_new = false;
 var Time = 0;
 
+var scr_lo_x;
+var scr_lo_y;
+
+var bullet_counter;
+
 function setup() {
 socket = new WebSocket("ws://" + window.location.host + "/websocket");
 socket.onopen = function(evt) { onOpen(evt) };
@@ -30,29 +35,73 @@ createCanvas(windowWidth, windowHeight);
 spaceShip = new SpaceShip();
 neighborhood = new Neighborhood();
 //print(spaceShip.v_pos.x,spaceShip.v_pos.y);
+scr_lo_x = windowWidth/2;
+scr_lo_y = windowHeight/2;
+bullet_counter = 0;
 mouse_point = createVector(0, 0); }
 
 
 
-function draw() {
-	Time ++;
 
-	if(Time == 360){
-			var data = {x_acl: 0, y_acl: 0 }; //keep alive
+function text(status,scoure){
+    textSize(25);
+  	text("Statuse:" + status, 10, 10, 1000, 200);
+  	text("Scoure: " + scoure, 10, 40, 1000, 200);
+}
+
+function draw_spaceShip(strok){
+
+        strokeWeight(2);
+	ellipse(0, 0, 40, 20);
+	ellipse(0, -5, 20, 15);
+}
+
+
+function draw_spaceShip(x,y){
+        strokeWeight(2);
+	ellipse(x, y, 40, 20);
+	ellipse(x, y-5, 20, 15);
+}
+
+
+
+function draw() {
+Time ++;
+
+if(Time == 360){
+			var data = {type : "player" , x_acl: 0, y_acl:0}; //keep alive
 			socket.send(JSON.stringify(data));
 			Time = 0;}
 
-	if(keyIsPressed == true){
-			if (mouseIsPressed)
-					spaceShip.shout();
-			move();
+if ((mouseIsPressed)&&(bullet_counter ==0)){
+	   bullet_counter = 60;}
+     //shout(); }
 
-  }
+if(keyIsPressed == true)
+		 move();
 
-		if(reacive_new){
+if(reacive_new){
 		show(msg);
-		reacive_new = false;
-	}
+		reacive_new = false;}
+
+ if(bullet_counter > 0)
+    bullet_counter--;
+}//main draw
+
+function shout() {
+
+var xx_val =  100*angle_sine*cos(spaceShip.angle);
+var yy_val =  100*angle_sine*cos(spaceShip.angle);
+
+
+var data = {x_val: 2 ,
+            y_val: 2 ,
+            x_pos: spaceShip.v_pos.x,
+            y_pos: spaceShip.v_pos.y,
+            type: "bullet"};
+socket.send(JSON.stringify(data));
+console.log('shout' , data);
+
 }
 
 function show(world){
@@ -65,14 +114,18 @@ function show(world){
 	spaceShip.show();
 
 	for (i in world.other_player){
-		ellipse(world.other_player[i].x_pos - world.x_pos + windowWidth/2, msg.other_player[i].y_pos +neighborhood_y, 20, 5);
+		draw_spaceShip(world.other_player[i].x_pos - world.x_pos + windowWidth/2, msg.other_player[i].y_pos +neighborhood_y);
 }
+
+for (i in world.bullets){
+  line(world.bullets[i].x_start - world.x_pos + windowWidth/2, world.bullets[i].y_start +neighborhood_y,
+    world.bullets[i].x_end - world.x_pos + windowWidth/2, world.bullets[i].y_end +neighborhood_y);
+}
+
+
 	neighborhood.show();
-	print("reacive");
-}
-
-
-
+  text(world.state,world.scoure)
+}//show
 
 
 function onOpen(evt) {
@@ -104,12 +157,15 @@ function move() {
 		if(mouseX < windowWidth/2)
 		angle_sine = -1;
 
-	var data = {x_acl: angle_sine*cos(spaceShip.angle), y_acl: angle_sine*sin(spaceShip.angle) };
-	socket.send(JSON.stringify(data));
+    var temp22 = 1;
+	  var data = {type : "player" ,x_acl: angle_sine*cos(spaceShip.angle), y_acl: angle_sine*sin(spaceShip.angle) };
+	 socket.send(JSON.stringify(data));
+   console.log('move');
+
   }
 	//spaceShip.v_val.set(x,y);
-
 }
+
 
 
 
@@ -141,46 +197,51 @@ shout(){
 				this.Array_of_Bullat[i].show();
 			}
 		}
-    var ang_y = mouseY - this.v_pos.y;
-		if(this.v_pos.y + windowHeight/2 < 900)
-		     ang_y = mouseY - windowHeight/2;
-
-		var ang_x = mouseX - windowWidth/2;
-    this.angle = atan(ang_y/ang_x);
 		neighborhood_x = -this.v_pos.x;
-
 	}
 
 	show(){
-
 
 		stroke('white');
 		strokeWeight(2);
 		noFill();
 		//mouse_point.set(mouseX,mouseY)
 		angleMode(DEGREES);
+                var ang_x = mouseX - windowWidth/2;
+                var ang_y = mouseY - windowHeight/2;
+
 
 		if(this.v_pos.y + windowHeight/2 >= 900){
 		neighborhood_y = windowHeight-900;
+		ang_y = mouseY - (windowHeight+ -900+this.v_pos.y);
+                scr_lo_y = windowHeight+ -900+this.v_pos.y;
+                this.angle = atan(ang_y/ang_x);
 		push();
 		translate(windowWidth/2, windowHeight - (900 - this.v_pos.y));
 		rotate(this.angle);
 		//print(this.v_pos.angleBetween(mouse_point));
-		ellipse(0, 0, 20, 5);
+                ellipse(0, 0, 40, 20);
+	        ellipse(0,-5, 20, 15);
 		pop();
 	  }
 		else{
+		scr_lo_y = windowHeight/2;
 		neighborhood_y =  -(this.v_pos.y - windowHeight/2);
-		console.log(neighborhood_y);
+                this.angle = atan(ang_y/ang_x);
 		push();
 		translate(windowWidth/2, windowHeight/2);
 		rotate(this.angle);
 		//print(this.v_pos.angleBetween(mouse_point));
-		ellipse(0, 0, 20, 5);
+		ellipse(0, 0, 40, 20);
+	        ellipse(0,-5, 20, 15);
 		pop();
-
 		}
-	}
+             //line(scr_lo_x,scr_lo_y,mouseX,mouseY);
+             //fill('red');
+	    // triangle(-40 + mouseX, mouseY, scr_lo_x, scr_lo_y, 40 + mouseX, mouseY);
+	     //noFill();
+
+	}//show
 
 
 
@@ -191,8 +252,8 @@ shout(){
 
 class Bulats{
 	constructor(angle,spaceShip){
-	this.v_pos = createVector(windowWidth/2, spaceShip.v_pos.y);
-	this.v_val = createVector(angle_sine*10*cos(angle), angle_sine*10*sin(angle));
+	this.v_pos = createVector(scr_lo_x, scr_lo_y);
+	this.v_val = createVector(angle_sine*100*cos(spaceShip.angle), angle_sine*100*sin(spaceShip.angle));
 	//this.v_val = createVector(3*cos(angle), 3*sin(angle));
 
 	}
@@ -203,7 +264,7 @@ update() {
 	this.v_pos.set(x,y);}
 
 show(){
-	line(this.v_pos.x, this.v_pos.y,this.v_pos.x+3,this.v_pos.y+3); }
+	line(this.v_pos.x, this.v_pos.y,this.v_pos.x + this.v_val.x,this.v_pos.y + this.v_val.y); }
 
 } // class
 

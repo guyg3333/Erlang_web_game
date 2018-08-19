@@ -20,12 +20,14 @@ websocket_init(State) ->
 
 websocket_handle({text, Json}, State) ->
 	Map = jiffy:decode(Json, [return_maps]),
-   	 X_acl = maps:get(<<"x_acl">>, Map),
-   	 Y_acl = maps:get(<<"y_acl">>, Map),
-  	 Reply = #{x_val =>X_acl, y_val =>Y_acl},
-	 %%  io:format("\n~p\n",[{X_acl,Y_acl}]),
-	   gen_server:call(w_serv,{move_player,Map}),
-     {reply,{text,jiffy:encode(Reply)}, State}.
+
+	Type = maps:get(<<"type">>,Map),
+	case Type of
+		<<"player">>  ->gen_server:call(w_serv,{move_player,Map});
+		<<"bullet">> -> gen_server:call(w_serv,{bullet,Map})
+  end,
+
+	{ok, State}.
 
 
 
