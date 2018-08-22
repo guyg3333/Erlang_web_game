@@ -14,6 +14,7 @@ var socket
 var msg
 var reacive_new = false;
 var Time = 0;
+var alive = true;
 
 var scr_lo_x;
 var scr_lo_y;
@@ -43,24 +44,28 @@ mouse_point = createVector(0, 0); }
 
 
 
-function text(status,scoure){
+function show_scoure(status,scoure){
     textSize(25);
-  	text("Statuse:" + status, 10, 10, 1000, 200);
-  	text("Scoure: " + scoure, 10, 40, 1000, 200);
+  	text("Statuse : " + status, 10, 40);
+  	text("Scoure : " + scoure, 10, 70);
 }
 
 function draw_spaceShip(strok){
 
-        strokeWeight(2);
+  strokeWeight(2);
 	ellipse(0, 0, 40, 20);
 	ellipse(0, -5, 20, 15);
 }
 
 
-function draw_spaceShip(x,y){
-        strokeWeight(2);
+function draw_spaceShip(x,y,status){
+  strokeWeight(2);
+  if(status == "dead")
+  stroke('red');
 	ellipse(x, y, 40, 20);
 	ellipse(x, y-5, 20, 15);
+  stroke('white');
+
 }
 
 
@@ -68,16 +73,17 @@ function draw_spaceShip(x,y){
 function draw() {
 Time ++;
 
+
 if(Time == 360){
 			var data = {type : "player" , x_acl: 0, y_acl:0}; //keep alive
 			socket.send(JSON.stringify(data));
 			Time = 0;}
 
-if ((mouseIsPressed)&&(bullet_counter ==0)){
-	   bullet_counter = 60;}
-     //shout(); }
+if ( mouseIsPressed && bullet_counter ==0 && alive == true){
+	   bullet_counter = 60;
+     shout(); }
 
-if(keyIsPressed == true)
+if(keyIsPressed == true && alive == true)
 		 move();
 
 if(reacive_new){
@@ -91,11 +97,13 @@ if(reacive_new){
 function shout() {
 
 var xx_val =  100*angle_sine*cos(spaceShip.angle);
-var yy_val =  100*angle_sine*cos(spaceShip.angle);
+var yy_val =  100*angle_sine*sin(spaceShip.angle);
+console.log('xx_val' , xx_val);
+console.log('yy_val' , yy_val);
 
 
-var data = {x_val: 2 ,
-            y_val: 2 ,
+var data = {x_val: xx_val ,
+            y_val: yy_val ,
             x_pos: spaceShip.v_pos.x,
             y_pos: spaceShip.v_pos.y,
             type: "bullet"};
@@ -109,12 +117,11 @@ function show(world){
 	background(56);
 
 	spaceShip.v_pos.set( world.x_pos, world.y_pos);
-	console.log(world.x_pos, world.y_pos);
 	spaceShip.update();
 	spaceShip.show();
 
 	for (i in world.other_player){
-		draw_spaceShip(world.other_player[i].x_pos - world.x_pos + windowWidth/2, msg.other_player[i].y_pos +neighborhood_y);
+		draw_spaceShip(world.other_player[i].x_pos - world.x_pos + windowWidth/2, msg.other_player[i].y_pos +neighborhood_y,msg.other_player[i].state);
 }
 
 for (i in world.bullets){
@@ -124,7 +131,7 @@ for (i in world.bullets){
 
 
 	neighborhood.show();
-  text(world.state,world.scoure)
+  show_scoure(world.state,world.scoure);
 }//show
 
 
@@ -137,6 +144,8 @@ function onMessage(ev) {
   var temp = JSON.parse(ev.data);
 	if(temp.type == "world_type"){
 		reacive_new = true;
+    if(temp.state =="dead")
+       alive = false;
 		msg = temp;
 	}
 }
@@ -201,8 +210,8 @@ shout(){
 	}
 
 	show(){
-
-		stroke('white');
+    if(msg.state == "dead")
+		  stroke('red');
 		strokeWeight(2);
 		noFill();
 		//mouse_point.set(mouseX,mouseY)
@@ -240,6 +249,7 @@ shout(){
              //fill('red');
 	    // triangle(-40 + mouseX, mouseY, scr_lo_x, scr_lo_y, 40 + mouseX, mouseY);
 	     //noFill();
+       stroke('white');
 
 	}//show
 

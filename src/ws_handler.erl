@@ -13,7 +13,7 @@ init(Req, Opts) ->
 
 websocket_init(State) ->
  	io:fwrite("connection establish !~p~n", [State]),
-	gen_server:call(w_serv,new_player),
+	gen_server:call(area1,new_player),
 %%	erlang:start_timer(1000, self(), <<"Hello!">>),
 	{ok, State}.
 
@@ -23,8 +23,8 @@ websocket_handle({text, Json}, State) ->
 
 	Type = maps:get(<<"type">>,Map),
 	case Type of
-		<<"player">>  ->gen_server:call(w_serv,{move_player,Map});
-		<<"bullet">> -> gen_server:call(w_serv,{bullet,Map})
+		<<"player">>  ->gen_server:call(area1,{move_player,Map});
+		<<"bullet">> -> gen_server:call(area1,{bullet,Map})
   end,
 
 	{ok, State}.

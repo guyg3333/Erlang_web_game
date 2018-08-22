@@ -19,5 +19,12 @@ start_link() ->
 %% supervisor.
 
 init([]) ->
-	Procs = [],
+	Procs = [{world_manager_id,
+							{world_manager,start_link,[]},
+							permanent,5000,worker,[world_manager]},
+					 {world_worker_sup_id,
+							{world_worker_sup,start_link,[]},
+							permanent,5000,supervisor,[world_worker_sup]}
+					],
+  io:format("websocket sup ~p ~n",[self()]),
 	{ok, {{one_for_one, 10, 10}, Procs}}.

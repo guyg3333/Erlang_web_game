@@ -13,7 +13,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0]).
+-export([start_link/0,start_link/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -42,6 +42,9 @@
 start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
+start_link(MyName) ->
+  gen_server:start_link({local, MyName}, ?MODULE, [], []).
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
@@ -67,7 +70,7 @@ init([]) ->
   %% pid - set the process id
   %% world_objects - set the world objects
   %% token - list of all the assigend plyer
-  io:format("i am init and shit\n"),
+  io:format("hollo from world_worker\n"),
   erlang:start_timer(20, self(),[]),
   State = [],
   {ok, State}.
@@ -110,8 +113,8 @@ handle_call({move_player,Map}, {Pid,_}, State) ->
   Y_val =  maps:get(y_val,Player_data),
   X_pos =  maps:get(x_pos,Player_data),
   Y_pos =  maps:get(y_pos,Player_data),
-  Player_state =  maps:get(y_val,Player_data),
-  Player_scoure =  maps:get(y_val,Player_data),
+  Player_state =  maps:get(state,Player_data),
+  Player_scoure =  maps:get(scoure,Player_data),
 
   New_X_val = X_val + maps:get(<<"x_acl">>, Map),
   New_Y_val = Y_val + maps:get(<<"y_acl">>, Map),
@@ -123,7 +126,7 @@ handle_call({move_player,Map}, {Pid,_}, State) ->
                x_val => New_X_val ,
                y_val => New_Y_val ,
                state => Player_state,
-                scoure => Player_scoure},
+               scoure => Player_scoure},
 
 
   New_state = proplists:delete({Pid,player}, State) ++ [{{Pid,player},New_data}],
@@ -139,7 +142,7 @@ handle_call({move_player,Map}, {Pid,_}, State) ->
     X_val =  maps:get(<<"x_val">>,Map),
     Y_val =  maps:get(<<"y_val">>,Map),
 
-    New_Bullet = #{x_pos => X_pos , y_pos => Y_pos , x_val => X_val , y_val => Y_val ,hops => 180 },
+    New_Bullet = #{x_pos => X_pos , y_pos => Y_pos , x_val => X_val , y_val => Y_val ,hops => 100 },
     New_state = State ++ [{{Pid,bullet},New_Bullet}],
     io:format("cheak  message: ~p~n",[New_Bullet]),
 
@@ -200,6 +203,7 @@ handle_info(_Info, State) ->
 -spec(terminate(Reason :: (normal | shutdown | {shutdown, term()} | term()),
     State :: #state{}) -> term()).
 terminate(_Reason, _State) ->
+  io:format("bye~n"),
   ok.
 
 %%--------------------------------------------------------------------
@@ -228,6 +232,7 @@ send_world([])->
 
 send_world(State)->
 
+  %first step update the position of etc object base on it velocity
   State_with_val = lists:map(fun(Tuple) ->
 
     case Tuple of
@@ -262,9 +267,17 @@ send_world(State)->
 
 
 
+ % second step: check for each player if it coliad with the floor or celing
+  New_state = floor_colusion(lists:flatten(State_with_val)),
 
-  New_state = floor_colusion(State_with_val),
+
+  % Third step calculate collusions
   State_after_coliad =  colusion_detection(New_state),
+
+  % Fourth step: for each player create it's own List and send
+
+
+
 
 
   L_pid = lists:map(fun(Tuple) ->
@@ -273,7 +286,9 @@ send_world(State)->
       _Else -> []
     end end,State_after_coliad),
 
-  send_world(L_pid,State_after_coliad),
+  L_pid_f = lists:flatten(L_pid),
+
+  send_world(L_pid_f,State_after_coliad),
   {ok,State_after_coliad}.
 
 
@@ -287,12 +302,13 @@ send_world(L_pid,State)->
   Player_data = proplists:get_value({hd(L_pid),player},State),        %%get the player data
 
 
-   Player_world_list = [] ++ proplists:delete({hd(L_pid),player}, State),  %%remove player from list
+
+  Player_world_list = [] ++ proplists:delete({hd(L_pid),player}, State),  %%remove player from list
 
   List_of_player = lists:map(fun(Tuple) ->
     case Tuple of
       {{_,player},Map} ->
-    #{x_pos => maps:get(x_pos,Map),y_pos => maps:get(y_pos,Map)};
+    #{x_pos => maps:get(x_pos,Map),y_pos => maps:get(y_pos,Map),state => maps:get(state,Map)};
       _Else -> [] end end,Player_world_list),
 
 
@@ -303,9 +319,9 @@ send_world(L_pid,State)->
     case Tuple of
       {{_,bullet},Map} ->
         #{x_start => maps:get(x_pos,Map),
-          x_end   => maps:get(x_pos,Map) + maps:get(x_val,Map)*50,
+          x_end   => maps:get(x_pos,Map) + maps:get(x_val,Map),
           y_start => maps:get(y_pos,Map),
-          y_end   => maps:get(y_pos,Map) + maps:get(y_val,Map)*50};
+          y_end   => maps:get(y_pos,Map) + maps:get(y_val,Map)};
 
       _Else -> [] end end,Player_world_list),
 
@@ -320,6 +336,7 @@ send_world(L_pid,State)->
 
 
   erlang:send(hd(L_pid),{world_update,Player_map}),
+
   send_world( tl(L_pid),State).
 
 
@@ -371,153 +388,154 @@ colusion_detection(List,[],State)->
 
 
 
-  colusion_detection(List1,List2,State)->
+colusion_detection(List1,List2,State)->
 
-   %% Temp1 = element(2,hd(List1)),
-    %% Temp2 = element(2,hd(List2)),
+  %% Temp1 = element(2,hd(List1)),
+  %% Temp2 = element(2,hd(List2)),
 
-    New_state =
+  New_state =
     case {hd(List1),hd(List2)} of
 
       {{{Pid1,player}, Map_1 },{{Pid2,player} ,Map_2}} ->
 
-    Y1 = maps:get(y_pos,Map_1),
-    X1 = maps:get(x_pos,Map_1),
-    Y2 = maps:get(y_pos,Map_2),
-    X2 = maps:get(x_pos,Map_2),
+        Y1 = maps:get(y_pos,Map_1),
+        X1 = maps:get(x_pos,Map_1),
+        Y2 = maps:get(y_pos,Map_2),
+        X2 = maps:get(x_pos,Map_2),
 
 
-      if
-        abs(Y1-Y2) < 25 andalso abs(X1-X2) < 50 ->
-
-
-
-          Witout1 = lists:delete({{Pid1,player}, Map_1}, State),
-          Witout2 = lists:delete({{Pid2,player}, Map_2 }, Witout1),
-
-
-          X_pos1 =  maps:get(x_pos,Map_1),
-          Y_pos1 =  maps:get(y_pos,Map_1),
-          X_val1 =  maps:get(x_val,Map_1),
-          Y_val1 =  maps:get(y_val,Map_1),
-
-
-          X_pos2 =  maps:get(x_pos,Map_2),
-          Y_pos2 =  maps:get(y_pos,Map_2),
-          X_val2 =  maps:get(x_val,Map_2),
-          Y_val2 =  maps:get(y_val,Map_2),
-          Gap = if
-            Y1 < Y2  -> -2;
-            true-> 2
-             end,
-
-
-          Map1 = #{x_pos => X_pos1 ,
-                   y_pos => Y_pos1 + Gap ,
-                   x_val => X_val2*0.9 ,
-                   y_val => Y_val2*0.9 ,
-                   state => maps:get(state,Map_1),
-                   scoure => maps:get(scoure,Map_1)},
+        if
+          abs(Y1-Y2) < 25 andalso abs(X1-X2) < 50 ->
 
 
 
-          Map2 = #{x_pos => X_pos2  ,
-                   y_pos => Y_pos2 - Gap ,
-                   x_val => X_val1*0.9 ,
-                   y_val => Y_val1*0.9 ,
-                   state =>  maps:get(state,Map_2),
-                   scoure => maps:get(scoure,Map_2)},
+            Witout1 = lists:delete({{Pid1,player}, Map_1}, State),
+            Witout2 = lists:delete({{Pid2,player}, Map_2 }, Witout1),
 
 
-        Affter_colliad_1 = {{Pid1,player},Map1},
-        Affter_colliad_2 = {{Pid2,player},Map2},
+            X_pos1 =  maps:get(x_pos,Map_1),
+            Y_pos1 =  maps:get(y_pos,Map_1),
+            X_val1 =  maps:get(x_val,Map_1),
+            Y_val1 =  maps:get(y_val,Map_1),
 
-       [Affter_colliad_1,Affter_colliad_2] ++ Witout2;
 
-        true-> State
+            X_pos2 =  maps:get(x_pos,Map_2),
+            Y_pos2 =  maps:get(y_pos,Map_2),
+            X_val2 =  maps:get(x_val,Map_2),
+            Y_val2 =  maps:get(y_val,Map_2),
+            Gap = if
+                    Y1 < Y2  -> -2;
+                    true-> 2
+                  end,
+
+
+            Map1 = #{x_pos => X_pos1 ,
+              y_pos => Y_pos1 + Gap ,
+              x_val => X_val2*0.9 ,
+              y_val => Y_val2*0.9 ,
+              state => maps:get(state,Map_1),
+              scoure => maps:get(scoure,Map_1)},
+
+
+
+            Map2 = #{x_pos => X_pos2  ,
+              y_pos => Y_pos2 - Gap ,
+              x_val => X_val1*0.9 ,
+              y_val => Y_val1*0.9 ,
+              state =>  maps:get(state,Map_2),
+              scoure => maps:get(scoure,Map_2)},
+
+
+            Affter_colliad_1 = {{Pid1,player},Map1},
+            Affter_colliad_2 = {{Pid2,player},Map2},
+
+            [Affter_colliad_1,Affter_colliad_2] ++ Witout2;
+
+          true-> State
         end;
 
-    {{{Pid1,player},Map_1},{{Pid2,bullet},Map_2}} ->
+      {{{Pid1,player},Map_1},{{Pid2,bullet},Map_2}} ->
 
-      Y1 = maps:get(y_pos,Map_1),
-      X1 = maps:get(x_pos,Map_1),
-      Y2_bullet_start = maps:get(y_pos,Map_2),
-      X2_bullet_start = maps:get(x_pos,Map_2),
+        Y1 = maps:get(y_pos,Map_1),
+        X1 = maps:get(x_pos,Map_1),
+        Y2_bullet_start = maps:get(y_pos,Map_2),
+        X2_bullet_start = maps:get(x_pos,Map_2),
 
-      Y2_bullet_end  = Y2_bullet_start + maps:get(y_val,Map_2)*50,
-      X2_bullet_end  = X2_bullet_start + maps:get(x_val,Map_2)*50,
-
-
-                    if
-                    (X1 > X2_bullet_start) andalso (X1 > X2_bullet_end)-> State;
-                    (X1 < X2_bullet_start) andalso (X1 < X2_bullet_end)-> State;
-                    (Y1 < Y2_bullet_start) andalso (Y1 < Y2_bullet_end)-> State;
-                    (Y1 > Y2_bullet_start) andalso (Y1 > Y2_bullet_end)-> State;
-                    true ->
-
-                      M = (Y2_bullet_start - Y2_bullet_end)/(X2_bullet_start - X2_bullet_end),
-                      N = (-X2_bullet_start*M +Y2_bullet_start ),
-
-                      D = abs((M*X1-Y1+N)/math:sqrt(M*M+1)),
-
-                                  if (D < 30)  ->
+        Y2_bullet_end  = Y2_bullet_start + maps:get(y_val,Map_2)*50,
+        X2_bullet_end  = X2_bullet_start + maps:get(x_val,Map_2)*50,
 
 
-                                    Map_player_2 = proplists:get_value({Pid2,player},State),
-                                    Witout1 =  proplists:delete({Pid1,player},State),
-                                    Witout2 =  proplists:delete({Pid2,player},Witout1),
+        if
+          (X1 > X2_bullet_start) andalso (X1 > X2_bullet_end)-> State;
+          (X1 < X2_bullet_start) andalso (X1 < X2_bullet_end)-> State;
+          (Y1 < Y2_bullet_start) andalso (Y1 < Y2_bullet_end)-> State;
+          (Y1 > Y2_bullet_start) andalso (Y1 > Y2_bullet_end)-> State;
+          true ->
 
-                                    Map_1_you_been_hit  = maps:put(state,<<"dead">>,Map_1),
-                                    Map_2_you_been_kill = maps:put(scoure,maps:get(scoure,Map_player_2)+1,Map_player_2),
-                                    [{{Pid1,player},Map_1_you_been_hit} , {{Pid2,player},Map_2_you_been_kill}] ++ Witout2;
+            M = (Y2_bullet_start - Y2_bullet_end)/(X2_bullet_start - X2_bullet_end),
+            N = (-X2_bullet_start*M +Y2_bullet_start ),
 
-                                    true->
-                                      State
-                                 end
-                    end;
+            D = abs((M*X1-Y1+N)/math:sqrt(M*M+1)),
 
-
-
-          {{{Pid2,bullet},Map_2},{{Pid1,player},Map_1}} ->
-
-          Y1 = maps:get(y_pos,Map_1),
-          X1 = maps:get(x_pos,Map_1),
-          Y2_bullet_start = maps:get(y_pos,Map_2),
-          X2_bullet_start = maps:get(x_pos,Map_2),
-
-          Y2_bullet_end  = Y2_bullet_start + maps:get(y_val,Map_2)*50,
-          X2_bullet_end  = X2_bullet_start + maps:get(x_val,Map_2)*50,
+            if (D < 30)  ->
 
 
-                    if
-                    (X1 > X2_bullet_start) andalso (X1 > X2_bullet_end)-> State;
-                    (X1 < X2_bullet_start) andalso (X1 < X2_bullet_end)-> State;
-                    (Y1 < Y2_bullet_start) andalso (Y1 < Y2_bullet_end)-> State;
-                    (Y1 > Y2_bullet_start) andalso (Y1 > Y2_bullet_end)-> State;
-                    true ->
+              Map_player_2 = proplists:get_value({Pid2,player},State),
+              Witout1 =  proplists:delete({Pid1,player},State),
+              Witout2 =  proplists:delete({Pid2,player},Witout1),
 
-                    M = (Y2_bullet_start - Y2_bullet_end)/(X2_bullet_start - X2_bullet_end),
-                    N = (-X2_bullet_start*M +Y2_bullet_start ),
+              Map_1_you_been_hit  = maps:put(state,<<"dead">>,Map_1),
+              Map_2_you_been_kill = maps:put(scoure,maps:get(scoure,Map_player_2)+1,Map_player_2),
+              [{{Pid1,player},Map_1_you_been_hit} , {{Pid2,player},Map_2_you_been_kill}] ++ Witout2;
 
-                    D = abs((M*X1-Y1+N)/math:sqrt(M*M+1)),
+              true->
+                State
+            end
+        end;
 
-                    if (D < 30)  ->
 
 
-                    Map_player_2 = proplists:get_value({Pid2,player},State),
-                    Witout1 =  proplists:delete({Pid1,player},State),
-                    Witout2 =  proplists:delete({Pid2,player},Witout1),
+      {{{Pid2,bullet},Map_2},{{Pid1,player},Map_1}} ->
 
-                    Map_1_you_been_hit  = maps:put(state,<<"dead">>,Map_1),
-                    Map_2_you_been_kill = maps:put(scoure,maps:get(scoure,Map_player_2)+1,Map_player_2),
-                    [{{Pid1,player},Map_1_you_been_hit} , {{Pid2,player},Map_2_you_been_kill}] ++ Witout2;
+        Y1 = maps:get(y_pos,Map_1),
+        X1 = maps:get(x_pos,Map_1),
+        Y2_bullet_start = maps:get(y_pos,Map_2),
+        X2_bullet_start = maps:get(x_pos,Map_2),
 
-                    true->
-                    State
-                    end
-                    end
-        end,
-       colusion_detection(List1,tl(List2),New_state).
+        Y2_bullet_end  = Y2_bullet_start + maps:get(y_val,Map_2)*50,
+        X2_bullet_end  = X2_bullet_start + maps:get(x_val,Map_2)*50,
+
+
+        if
+          (X1 > X2_bullet_start) andalso (X1 > X2_bullet_end)-> State;
+          (X1 < X2_bullet_start) andalso (X1 < X2_bullet_end)-> State;
+          (Y1 < Y2_bullet_start) andalso (Y1 < Y2_bullet_end)-> State;
+          (Y1 > Y2_bullet_start) andalso (Y1 > Y2_bullet_end)-> State;
+          true ->
+
+            M = (Y2_bullet_start - Y2_bullet_end)/(X2_bullet_start - X2_bullet_end),
+            N = (-X2_bullet_start*M +Y2_bullet_start ),
+
+            D = abs((M*X1-Y1+N)/math:sqrt(M*M+1)),
+
+            if (D < 30)  ->
+
+
+              Map_player_2 = proplists:get_value({Pid2,player},State),
+              Witout1 =  proplists:delete({Pid1,player},State),
+              Witout2 =  proplists:delete({Pid2,player},Witout1),
+
+              Map_1_you_been_hit  = maps:put(state,<<"dead">>,Map_1),
+              Map_2_you_been_kill = maps:put(scoure,maps:get(scoure,Map_player_2)+1,Map_player_2),
+              [{{Pid1,player},Map_1_you_been_hit} , {{Pid2,player},Map_2_you_been_kill}] ++ Witout2;
+
+              true->
+                State
+            end
+        end;
+        _Else-> State
+    end,
+  colusion_detection(List1,tl(List2),New_state).
 
 
 
