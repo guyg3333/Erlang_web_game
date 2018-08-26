@@ -43,7 +43,7 @@ start_link() ->
   gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 start_link(MyName) ->
-  gen_server:start_link({local, MyName}, ?MODULE, [], []).
+  gen_server:start_link({local, MyName}, ?MODULE, [MyName], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -63,16 +63,17 @@ start_link(MyName) ->
 -spec(init(Args :: term()) ->
   {ok, State :: #state{}} | {ok, State :: #state{}, timeout() | hibernate} |
   {stop, Reason :: term()} | ignore).
-init([]) ->
+init([MyName]) ->
 
   %% generate world structure
   %%left and right - set the responseble
   %% pid - set the process id
   %% world_objects - set the world objects
-  %% token - list of all the assigend plyer
-  io:format("hollo from world_worker\n"),
+  %% token - list of all the assigend player
+  io:format("hello from ~p my pid is:~p~n",[MyName,self()]),
   erlang:start_timer(20, self(),[]),
   State = [],
+  gen_server:call(etsManager,{etsReq,MyName}),
   {ok, State}.
 
 %%--------------------------------------------------------------------
@@ -183,6 +184,11 @@ handle_info({timeout, _Ref,_}, State) ->
   {ok,New_state} = send_world(State),
   {noreply, New_state};
 
+handle_info({'ETS-TRANSFER',Tab,_FromPid,_GiftData}, _State)->
+  io:format("my pid is:~p received ets from: ~p, and data is: ~p ~n",[self(),_FromPid,_GiftData]),
+  New_State= ets:match_object(Tab, {'$0', '$1'}),
+  io:format("my pid is:~p new stat is: ~p ~n",[self(),New_State]),
+  {noreply, New_State};
 
 
 handle_info(_Info, State) ->

@@ -5,7 +5,7 @@
 -behaviour(supervisor).
 
 %% API.
--export([start_link/0]).
+-export([start_link/0,stop/0]).
 
 %% supervisor.
 -export([init/1]).
@@ -16,12 +16,22 @@
 start_link() ->
 	supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
+stop() ->
+  case whereis(?MODULE) of
+    P when is_pid(P) ->
+      exit(P, kill);
+    _ -> ok
+  end.
+
 %% supervisor.
 
 init([]) ->
 	Procs = [{world_manager_id,
 							{world_manager,start_link,[]},
 							permanent,5000,worker,[world_manager]},
+						{etsManager,
+							{etsManager,start_link,[]},
+							permanent,5000,worker,[etsManager]},
 					 {world_worker_sup_id,
 							{world_worker_sup,start_link,[]},
 							permanent,5000,supervisor,[world_worker_sup]}

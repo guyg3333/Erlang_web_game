@@ -56,7 +56,7 @@ start_link() ->
   ignore |
   {error, Reason :: term()}).
 init([]) ->
-  io:format("world_worker sup ~p ~n",[self()]),
+  io:format("hello from ~p my pid: ~p ~n",[?MODULE,self()]),
   RestartStrategy = one_for_one,
   MaxRestarts = 10,
   MaxSecondsBetweenRestarts = 10,

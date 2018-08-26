@@ -38,6 +38,7 @@ neighborhood = new Neighborhood();
 //print(spaceShip.v_pos.x,spaceShip.v_pos.y);
 scr_lo_x = windowWidth/2;
 scr_lo_y = windowHeight/2;
+angle_sine = 1;
 bullet_counter = 0;
 mouse_point = createVector(0, 0); }
 
